@@ -1,0 +1,22 @@
+apply plugin: 'android'
+
+android {
+    android {
+        compileSdkVersion 19
+        buildToolsVersion "19.0.2"
+
+        defaultConfig {
+            minSdkVersion 9
+            targetSdkVersion 19
+        }
+    }
+}
+
+dependencies {
+    compile 'com.android.support:appcompat-v7:+'
+    compile 'com.android.support:support-v4:+'
+
+    compile project(':card-deck:Library')
+}
+
+

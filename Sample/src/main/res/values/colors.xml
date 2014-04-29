@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="test_holo_blue_light">#ff33b5e5</color>
+    <color name="test_holo_green_light">#ff99cc00</color>
+    <color name="test_holo_red_light">#ffff4444</color>
+</resources>

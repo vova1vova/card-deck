@@ -1,0 +1,12 @@
+<resources>
+    <!-- Default screen margins, per the Android Design guidelines. -->
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+
+    <dimen name="menu_width">280dip</dimen>
+    <dimen name="menu_width_collapsed">48dip</dimen>
+
+    <dimen name="sub_menu_width">240dip</dimen>
+
+    <dimen name="slide_layer_touch_width">32dip</dimen>
+</resources>
