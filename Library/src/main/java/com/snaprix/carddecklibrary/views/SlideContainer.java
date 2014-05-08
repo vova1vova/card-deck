@@ -15,6 +15,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
+import com.snaprix.carddecklibrary.CardDeckLibrary;
 import com.snaprix.carddecklibrary.R;
 
 import java.util.HashMap;
@@ -25,8 +26,8 @@ import java.util.HashMap;
 public class SlideContainer extends LinearLayout
         implements SlideLayer.FrameLayoutListener{
 
-    private final static String TAG = SlideContainer.class.getSimpleName();
-    private final static boolean DEBUG = true;
+    private static final String TAG = SlideContainer.class.getSimpleName();
+    private static final boolean DEBUG = CardDeckLibrary.DEBUG;
 
     /**
      * since JELLY_BEAN map view implemented using TextureView
@@ -137,7 +138,7 @@ public class SlideContainer extends LinearLayout
         int layerNumber = interactView.getLayerNumber();
         interactViews.put(layerNumber, interactView);
 
-        interactView.setupLayer(this, side, DEBUG);
+        interactView.setupLayer(this, side);
 
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) lowerInteractView.getLayoutParams();
         final int gravity;

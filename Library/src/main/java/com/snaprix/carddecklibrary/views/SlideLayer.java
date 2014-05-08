@@ -6,10 +6,10 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
-import android.view.View;
 import android.view.ViewConfiguration;
 import android.widget.FrameLayout;
 
+import com.snaprix.carddecklibrary.CardDeckLibrary;
 import com.snaprix.carddecklibrary.R;
 
 
@@ -23,7 +23,7 @@ public class SlideLayer extends FrameLayout {
     }
 
     private static final String TAG = SlideLayer.class.getSimpleName();
-    private static boolean DEBUG;
+    private static final boolean DEBUG = CardDeckLibrary.DEBUG;
 
     private GestureDetector gd;
 
@@ -157,10 +157,9 @@ public class SlideLayer extends FrameLayout {
         isScrollHorizontal = false;
     }
 
-    public void setupLayer(FrameLayoutListener listener, int side, boolean debug) {
+    public void setupLayer(FrameLayoutListener listener, int side) {
         this.mListener = listener;
         mSide = side;
-        DEBUG = debug;
     }
 
     public static String actionToString(int action) {
