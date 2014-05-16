@@ -12,12 +12,17 @@ import android.widget.FrameLayout;
 import com.snaprix.carddecklibrary.CardDeckLibrary;
 import com.snaprix.carddecklibrary.R;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.WeakHashMap;
+
 
 /**
  * Created by vladimirryabchikov on 10/12/13.
  */
 public class SlideLayer extends FrameLayout {
-    public interface FrameLayoutListener{
+    public interface Listener{
         void onActionMove(SlideLayer view, float distanceX);
         void onActionUp(SlideLayer view, float distanceX);
     }
@@ -32,7 +37,10 @@ public class SlideLayer extends FrameLayout {
     private float mLastMotionX;
     private float mInitialMotionX;
 
-    private FrameLayoutListener mListener;
+    /**
+     * stores references to listeners to be notified about events happening with this layer
+     */
+    private Set<Listener> mListeners = new HashSet<>();
 
     private int mPagingTouchSlop;
     private int mTouchRegionWidth;
@@ -96,6 +104,10 @@ public class SlideLayer extends FrameLayout {
         return mIsTouchModeEnabled;
     }
 
+    public void setTouchModeEnabled(boolean isEnabled) {
+        mIsTouchModeEnabled = isEnabled;
+    }
+
     public int getLayerNumber() {
         return mLayerNumber;
     }
@@ -128,7 +140,9 @@ public class SlideLayer extends FrameLayout {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         final int action = event.getAction();
-//        if (DEBUG) Log.d(TAG, String.format("%s rawX %f X %f", actionToString(action), event.getRawX(), event.getX()));
+
+        if (DEBUG) Log.v(TAG, String.format("onTouchEvent this=%s listeners=%d %s rawX %f X %f",
+                this, mListeners.size(), actionToString(action), event.getRawX(), event.getX()));
         float x;
         float distanceX;
         switch (action){
@@ -137,16 +151,16 @@ public class SlideLayer extends FrameLayout {
                 distanceX = x - mLastMotionX;
                 mLastMotionX = x;
 
-                if (mListener != null){
-                    mListener.onActionMove(this, distanceX);
+                for (Listener l : mListeners){
+                    l.onActionMove(this, distanceX);
                 }
                 break;
             case MotionEvent.ACTION_UP:
                 x = event.getRawX();
                 distanceX = x - mInitialMotionX;
 
-                if (mListener != null) {
-                    mListener.onActionUp(this, distanceX);
+                for (Listener l : mListeners){
+                    l.onActionUp(this, distanceX);
                 }
                 break;
         }
@@ -157,9 +171,17 @@ public class SlideLayer extends FrameLayout {
         isScrollHorizontal = false;
     }
 
-    public void setupLayer(FrameLayoutListener listener, int side) {
-        this.mListener = listener;
+    public void setupLayer(int side){
         mSide = side;
+    }
+
+    public void addListener(Listener l){
+        if (DEBUG) Log.v(TAG, String.format("addListener this=%s l=%s", this, l));
+        mListeners.add(l);
+    }
+    public void removeListener(Listener l){
+        if (DEBUG) Log.v(TAG, String.format("removeListener this=%s l=%s", this, l));
+        mListeners.remove(l);
     }
 
     public static String actionToString(int action) {

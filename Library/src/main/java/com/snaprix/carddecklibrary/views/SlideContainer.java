@@ -24,7 +24,7 @@ import java.util.HashMap;
  * Created by vladimirryabchikov on 10/4/13.
  */
 public class SlideContainer extends LinearLayout
-        implements SlideLayer.FrameLayoutListener{
+        implements SlideLayer.Listener {
 
     private static final String TAG = SlideContainer.class.getSimpleName();
     private static final boolean DEBUG = CardDeckLibrary.DEBUG;
@@ -61,6 +61,9 @@ public class SlideContainer extends LinearLayout
 
     private int mSide;
 
+    private SlideLayer mBaseInteractLayer;
+    private SlideLayer mClildInteractLayer;
+
     public SlideContainer(Activity act, int side) {
         super(act);
 
@@ -88,16 +91,16 @@ public class SlideContainer extends LinearLayout
         FrameLayout card1Slide = (FrameLayout) slideContainerView.findViewById(R.id.card_1_slide);
         FrameLayout card2Slide = (FrameLayout) slideContainerView.findViewById(R.id.card_2_slide);
 
-        SlideLayer card1Interact = (SlideLayer) slideContainerView.findViewById(R.id.card_1_interact);
-        SlideLayer card2Interact = (SlideLayer) slideContainerView.findViewById(R.id.card_2_interact);
+        mBaseInteractLayer = (SlideLayer) slideContainerView.findViewById(R.id.card_1_interact);
+        mClildInteractLayer = (SlideLayer) slideContainerView.findViewById(R.id.card_2_interact);
         SlideLayer card3Interact = (SlideLayer) slideContainerView.findViewById(R.id.card_3_interact);
 
         // return action bar
         activityParentView.removeView(actionBarOverlay);
-        card1Interact.addView(actionBarOverlay);
+        mBaseInteractLayer.addView(actionBarOverlay);
 
-        setupLayer(card1Slide, card1Interact, card2Interact, side);
-        setupLayer(card2Slide, card2Interact, card3Interact, side);
+        setupLayer(card1Slide, mBaseInteractLayer, mClildInteractLayer, side);
+        setupLayer(card2Slide, mClildInteractLayer, card3Interact, side);
     }
 
     @Override
@@ -138,7 +141,8 @@ public class SlideContainer extends LinearLayout
         int layerNumber = interactView.getLayerNumber();
         interactViews.put(layerNumber, interactView);
 
-        interactView.setupLayer(this, side);
+        interactView.setupLayer(side);
+        interactView.addListener(this);
 
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) lowerInteractView.getLayoutParams();
         final int gravity;
@@ -310,7 +314,6 @@ public class SlideContainer extends LinearLayout
 
         View activeSlideView = interactToSlideViews.get(interact);
 
-
         for (int i = layerNumber; i > 0; i--){
             View v = interactViews.get(i);
             if (v != null){
@@ -427,5 +430,13 @@ public class SlideContainer extends LinearLayout
 //        if (DEBUG) Log.d(TAG, String.format("scrollByX delta=%d maxScrollX=%d scrollX=%d adjDelta=%d nextScrollX=%d",
 //                delta, maxScrollX, scrollX, adjDelta, nextScrollX));
         slideView.scrollBy(adjDelta, 0);
+    }
+
+    public SlideLayer getBaseInteractLayer() {
+        return mBaseInteractLayer;
+    }
+
+    public SlideLayer getClildInteractLayer() {
+        return mClildInteractLayer;
     }
 }
