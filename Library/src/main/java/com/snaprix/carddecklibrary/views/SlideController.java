@@ -23,10 +23,9 @@ import java.util.HashMap;
 /**
  * Created by vladimirryabchikov on 10/4/13.
  */
-public class SlideContainer extends LinearLayout
-        implements SlideLayer.Listener {
+public class SlideController extends LinearLayout{
 
-    private static final String TAG = SlideContainer.class.getSimpleName();
+    private static final String TAG = SlideController.class.getSimpleName();
     private static final boolean DEBUG = CardDeckLibrary.DEBUG;
 
     /**
@@ -53,18 +52,18 @@ public class SlideContainer extends LinearLayout
      */
     private int mSlideDuration;
 
-    private SparseArray<View> interactViews;
-    private HashMap<View, View> interactToSlideViews;
-    private HashMap<SlideLayer, SlideLayer> interactToNextViews;
+    private SparseArray<SlideLayer> mLayers;
+    private HashMap<SlideLayer, View> mLayerToContainer;
+    private HashMap<SlideLayer, SlideLayer> mLayerToChild;
 
     private int mCurrentScrollX;
 
     private int mSide;
 
     private SlideLayer mBaseInteractLayer;
-    private SlideLayer mClildInteractLayer;
+    private SlideLayer mChildInteractLayer;
 
-    public SlideContainer(Activity act, int side) {
+    public SlideController(Activity act, int side) {
         super(act);
 
         mSide = side;
@@ -76,9 +75,9 @@ public class SlideContainer extends LinearLayout
         if (DEBUG) Log.v(TAG, String.format("init mCollapsedWidth {%d} slideDuration {%d}",
                 mCollapsedWidth, mSlideDuration));
 
-        interactViews = new SparseArray<View>();
-        interactToSlideViews = new HashMap<View, View>();
-        interactToNextViews = new HashMap<SlideLayer, SlideLayer>();
+        mLayers = new SparseArray<>();
+        mLayerToContainer = new HashMap<>();
+        mLayerToChild = new HashMap<>();
 
         LayoutInflater inflater = (LayoutInflater) act.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View actionBarOverlay = (View) act.findViewById(android.R.id.content).getParent();
@@ -88,19 +87,19 @@ public class SlideContainer extends LinearLayout
 
         // create layers
         // todo may be do it in code (in cycle) do not load them from XML
-        FrameLayout card1Slide = (FrameLayout) slideContainerView.findViewById(R.id.card_1_slide);
-        FrameLayout card2Slide = (FrameLayout) slideContainerView.findViewById(R.id.card_2_slide);
+        FrameLayout card1Slide = (FrameLayout) slideContainerView.findViewById(R.id.card_1_container);
+        FrameLayout card2Slide = (FrameLayout) slideContainerView.findViewById(R.id.card_2_container);
 
-        mBaseInteractLayer = (SlideLayer) slideContainerView.findViewById(R.id.card_1_interact);
-        mClildInteractLayer = (SlideLayer) slideContainerView.findViewById(R.id.card_2_interact);
-        SlideLayer card3Interact = (SlideLayer) slideContainerView.findViewById(R.id.card_3_interact);
+        mBaseInteractLayer = (SlideLayer) slideContainerView.findViewById(R.id.card_1_layer);
+        mChildInteractLayer = (SlideLayer) slideContainerView.findViewById(R.id.card_2_layer);
+        SlideLayer card3Interact = (SlideLayer) slideContainerView.findViewById(R.id.card_3_layer);
 
         // return action bar
         activityParentView.removeView(actionBarOverlay);
         mBaseInteractLayer.addView(actionBarOverlay);
 
-        setupLayer(card1Slide, mBaseInteractLayer, mClildInteractLayer, side);
-        setupLayer(card2Slide, mClildInteractLayer, card3Interact, side);
+        setupLayer(card1Slide, mBaseInteractLayer, mChildInteractLayer, side);
+        setupLayer(card2Slide, mChildInteractLayer, card3Interact, side);
     }
 
     @Override
@@ -131,18 +130,18 @@ public class SlideContainer extends LinearLayout
 
     /**
      *
-     * @param interactView handles user gestures
-     * @param slideView actually slides
+     * @param layer handles user gestures
+     * @param container actually slides
      */
-    private void setupLayer(FrameLayout slideView, SlideLayer interactView, SlideLayer lowerInteractView, int side){
-        interactToSlideViews.put(interactView, slideView);
-        interactToNextViews.put(interactView, lowerInteractView);
+    private void setupLayer(FrameLayout container, SlideLayer layer, SlideLayer lowerInteractView, int side){
+        mLayerToContainer.put(layer, container);
+        mLayerToChild.put(layer, lowerInteractView);
 
-        int layerNumber = interactView.getLayerNumber();
-        interactViews.put(layerNumber, interactView);
+        int layerNumber = layer.getLayerNumber();
+        mLayers.put(layerNumber, layer);
 
-        interactView.setupLayer(side);
-        interactView.addListener(this);
+        layer.setupLayer(side);
+        layer.addDelegate(mSlideLayerDelegate);
 
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) lowerInteractView.getLayoutParams();
         final int gravity;
@@ -185,48 +184,9 @@ public class SlideContainer extends LinearLayout
         return statusHeight;
     }
 
-    @Override
-    public void onActionMove(SlideLayer interactView, float distanceX) {
-        int layerNumber = interactView.getLayerNumber();
-        if (DEBUG) Log.v(TAG, String.format("onActionMove layerNumber=%d isTouchModeEnabled=%b",
-                layerNumber, interactView.isTouchModeEnabled()));
-
-        if (interactView.isTouchModeEnabled()){
-            // pass events to lower child layer
-            SlideLayer childInteract = getNextLayer(interactView);
-            if (childInteract.equals(interactView)){
-                onScroll(interactView, distanceX);
-            } else {
-                onActionMove(childInteract, distanceX);
-            }
-        }
-    }
-
-    @Override
-    public void onActionUp(SlideLayer interactView, float distanceX) {
-        if (interactView.isTouchModeEnabled()){
-            // pass events to lower child layer
-            SlideLayer childInteract = getNextLayer(interactView);
-            if (childInteract.equals(interactView)){
-                boolean nextStateOpened;
-                switch (mSide){
-                    case Side.LEFT:
-                        nextStateOpened = (distanceX > 0);
-                        break;
-                    default:
-                        nextStateOpened = (distanceX < 0);
-                        break;
-                }
-                switchState(interactView, nextStateOpened);
-            } else {
-                onActionUp(childInteract, distanceX);
-            }
-        }
-    }
-
     public void switchState(final SlideLayer interactView, boolean nextOpened){
-        View slideView = interactToSlideViews.get(interactView);
-        View nextView = interactToNextViews.get(interactView);
+        View slideView = mLayerToContainer.get(interactView);
+        View nextView = mLayerToChild.get(interactView);
 
         final int targetScrollX;
         if (nextOpened){
@@ -286,58 +246,121 @@ public class SlideContainer extends LinearLayout
         onScroll(interactView, -deltaX);
     }
 
-    private SlideLayer getNextLayer(SlideLayer interactView){
-        SlideLayer nextLayerInteractView = interactToNextViews.get(interactView);
+    private SlideLayer getNextLayer(SlideLayer layer){
+        SlideLayer childLayer = getChildLayer(layer);
 
-        boolean hasNextLayer = (nextLayerInteractView != null);
-        boolean isNextLayerScrolled = false;
-        if (hasNextLayer){
-            View nextLayerSlideView = interactToSlideViews.get(nextLayerInteractView);
-            if (nextLayerSlideView != null){
-                isNextLayerScrolled = (nextLayerSlideView.getScrollX() != 0);
-            }
+        boolean hasChildLayer = (childLayer != null);
+        boolean isChildLayerClosed = false;
+        if (hasChildLayer){
+            isChildLayerClosed = isClosed(childLayer);
         }
 
-        if (DEBUG) Log.v(TAG, String.format("getNextLayer layerNumber=%d hasNextLayer=%b isNextLayerScrolled=%b",
-                interactView.getLayerNumber(), hasNextLayer, isNextLayerScrolled));
+        if (DEBUG) Log.v(TAG, String.format("getNextLayer layerNumber=%d hasChildLayer=%b isChildLayerClosed=%b",
+                layer.getLayerNumber(), hasChildLayer, isChildLayerClosed));
 
-        if (isNextLayerScrolled){
-            return getNextLayer(nextLayerInteractView);
+        if (isChildLayerClosed){
+            return layer;
         } else {
-            return interactView;
+            return getNextLayer(childLayer);
         }
     }
 
-    private void onScroll(SlideLayer interact, float distanceX){
-        int layerNumber = interact.getLayerNumber();
+    private SlideLayer getChildLayer(SlideLayer layer){
+        return mLayerToChild.get(layer);
+    }
+
+    public SlideLayer getBaseInteractLayer() {
+        return mBaseInteractLayer;
+    }
+
+    public SlideLayer getChildInteractLayer() {
+        return mChildInteractLayer;
+    }
+
+    private SlideLayer.Delegate mSlideLayerDelegate = new SlideLayer.Delegate() {
+        @Override
+        public boolean shouldInterceptEvents(SlideLayer layer) {
+            // TODO: return true when layer is opened
+            boolean isLayerOpened = !isClosed(layer);
+            boolean shouldIntercept = isLayerOpened;
+
+            int layerNumber = layer.getLayerNumber();
+            if (DEBUG) Log.v(TAG, String.format("shouldInterceptEvents number=%d shouldIntercept=%b",
+                    layerNumber, shouldIntercept));
+
+            return shouldIntercept;
+        }
+
+        @Override
+        public void onActionMove(SlideLayer layer, float distanceX) {
+//            if (DEBUG) Log.v(TAG, String.format("onActionMove layerNumber=%d isTouchModeEnabled=%b",
+//                    layerNumber, layer.isTouchModeEnabled()));
+
+            if (layer.isTouchModeEnabled()){
+                // pass events to lower child layer
+                SlideLayer childLayer = getNextLayer(layer);
+                boolean hasChildLayer = (!childLayer.equals(layer));
+                if (hasChildLayer){
+                    onActionMove(childLayer, distanceX);
+                } else {
+                    onScroll(layer, distanceX);
+                }
+            }
+        }
+
+        @Override
+        public void onActionUp(SlideLayer layer, float distanceX) {
+            if (layer.isTouchModeEnabled()){
+                // pass events to lower child layer
+                SlideLayer childInteract = getNextLayer(layer);
+                if (childInteract.equals(layer)){
+                    boolean nextStateOpened;
+                    switch (mSide){
+                        case Side.LEFT:
+                            nextStateOpened = (distanceX > 0);
+                            break;
+                        default:
+                            nextStateOpened = (distanceX < 0);
+                            break;
+                    }
+                    switchState(layer, nextStateOpened);
+                } else {
+                    onActionUp(childInteract, distanceX);
+                }
+            }
+        }
+    };
+
+    private void onScroll(SlideLayer activeLayer, float distanceX){
+        int layerNumber = activeLayer.getLayerNumber();
         if (DEBUG) Log.v(TAG, String.format("onScroll layerNumber=%d", layerNumber));
 
-        View activeSlideView = interactToSlideViews.get(interact);
+        View activeContainer = mLayerToContainer.get(activeLayer);
 
         for (int i = layerNumber; i > 0; i--){
-            View v = interactViews.get(i);
-            if (v != null){
-                View slideView = interactToSlideViews.get(v);
-                View childView = interactToNextViews.get(v);
+            View layer = mLayers.get(i);
+            if (layer != null){
+                View container = mLayerToContainer.get(layer);
+                View childLayer = mLayerToChild.get(layer);
 
                 boolean activeCard = (i == layerNumber);
                 int maxScrollX;
 
                 int adjDeltaX = (int)distanceX;
                 if (activeCard){
-                    maxScrollX = childView.getWidth();
+                    maxScrollX = childLayer.getWidth();
                 } else {
-                    final int interactWidth = interact.getWidth();
+                    final int interactWidth = activeLayer.getWidth();
                     final int distanceSide;
-                    final int viewMaxScroll = v.getWidth() - i * mCollapsedWidth;
+                    final int viewMaxScroll = layer.getWidth() - i * mCollapsedWidth;
 
                     switch (mSide){
                         case Side.LEFT:
                             // distance from left side
-                            distanceSide = interactWidth - activeSlideView.getScrollX();
+                            distanceSide = interactWidth - activeContainer.getScrollX();
                             if (distanceX < 0){
                                 // move from right to left
-                                int scrollX = slideView.getScrollX();
+                                int scrollX = container.getScrollX();
                                 if (-scrollX < interactWidth){
                                     adjDeltaX = 0;
                                 }
@@ -353,10 +376,10 @@ public class SlideContainer extends LinearLayout
                             // todo check signs
 
                             // todo distance from right side
-                            distanceSide = interactWidth + activeSlideView.getScrollX();
+                            distanceSide = interactWidth + activeContainer.getScrollX();
                             if (distanceX > 0){
                                 // move from left to right
-                                int scrollX = slideView.getScrollX();
+                                int scrollX = container.getScrollX();
                                 if (-scrollX < interactWidth){
                                     adjDeltaX = 0;
                                 }
@@ -374,7 +397,7 @@ public class SlideContainer extends LinearLayout
 //                            activeSlideView.getScrollX(), interact.getWidth(), distanceSide, viewMaxScroll));
                 }
 
-                scrollByX(slideView, adjDeltaX, maxScrollX);
+                scrollByX(container, adjDeltaX, maxScrollX);
             } else {
                 if (DEBUG) Log.w(TAG, String.format("onScroll v == null for tag %d", i));
             }
@@ -383,19 +406,19 @@ public class SlideContainer extends LinearLayout
 
     /**
      *
-     * @param slideView
+     * @param container
      * @param delta - positive value, when moving from left to right;
      *              negative value, when moving from right to left
      * @param maxScrollX - positive value, max scroll available for this view
      */
-    private void scrollByX(View slideView, int delta, int maxScrollX){
+    private void scrollByX(View container, int delta, int maxScrollX){
         int adjDelta = -delta;
 
         /**
          * scrollX - positive value, when left edge of the view is beyond the left edge of the screen
          *          negative value, when right edge is beyond the right edge of the screen
          */
-        int scrollX = slideView.getScrollX();
+        int scrollX = container.getScrollX();
         int nextScrollX = scrollX + adjDelta;
         switch (mSide){
             case Side.LEFT:
@@ -429,14 +452,20 @@ public class SlideContainer extends LinearLayout
         }
 //        if (DEBUG) Log.d(TAG, String.format("scrollByX delta=%d maxScrollX=%d scrollX=%d adjDelta=%d nextScrollX=%d",
 //                delta, maxScrollX, scrollX, adjDelta, nextScrollX));
-        slideView.scrollBy(adjDelta, 0);
+        container.scrollBy(adjDelta, 0);
     }
 
-    public SlideLayer getBaseInteractLayer() {
-        return mBaseInteractLayer;
-    }
+    private boolean isClosed(SlideLayer layer){
+        View container = mLayerToContainer.get(layer);
+        // container is null for the last layer in current implementation
+        // this layer is always closed
+        if (container == null) return true;
 
-    public SlideLayer getClildInteractLayer() {
-        return mClildInteractLayer;
+        int scrollX = container.getScrollX();
+        boolean isClosed = (scrollX == 0);
+        if (DEBUG) Log.v(TAG, String.format("isClosed layer=%d container scrollX=%d isClosed=%b",
+                layer.getLayerNumber(), scrollX, isClosed));
+        return isClosed;
+
     }
 }

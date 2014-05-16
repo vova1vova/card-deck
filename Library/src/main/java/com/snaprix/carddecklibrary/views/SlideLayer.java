@@ -12,19 +12,18 @@ import android.widget.FrameLayout;
 import com.snaprix.carddecklibrary.CardDeckLibrary;
 import com.snaprix.carddecklibrary.R;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.WeakHashMap;
-
 
 /**
  * Created by vladimirryabchikov on 10/12/13.
  */
 public class SlideLayer extends FrameLayout {
-    public interface Listener{
-        void onActionMove(SlideLayer view, float distanceX);
-        void onActionUp(SlideLayer view, float distanceX);
+    /**
+     * class implementing this interface will be responsible for scrolling this layer
+     */
+    interface Delegate {
+        boolean shouldInterceptEvents(SlideLayer layer);
+        void onActionMove(SlideLayer layer, float distanceX);
+        void onActionUp(SlideLayer layer, float distanceX);
     }
 
     private static final String TAG = SlideLayer.class.getSimpleName();
@@ -37,10 +36,7 @@ public class SlideLayer extends FrameLayout {
     private float mLastMotionX;
     private float mInitialMotionX;
 
-    /**
-     * stores references to listeners to be notified about events happening with this layer
-     */
-    private Set<Listener> mListeners = new HashSet<>();
+    private Delegate mDelegate;
 
     private int mPagingTouchSlop;
     private int mTouchRegionWidth;
@@ -73,6 +69,25 @@ public class SlideLayer extends FrameLayout {
             }
         }
         a.recycle();
+
+//        if (DEBUG){
+//            int colorResId;
+//            switch (mLayerNumber){
+//                case 1:
+//                    colorResId = R.color.holo_layer_1;
+//                    break;
+//                case 2:
+//                    colorResId = R.color.holo_layer_2;
+//                    break;
+//                case 3:
+//                    colorResId = R.color.holo_layer_3;
+//                    break;
+//                default:
+//                    colorResId = R.color.holo_layer_4;
+//                    break;
+//            }
+//            setForeground(new ColorDrawable(getResources().getColor(colorResId)));
+//        }
     }
 
     private GestureDetector.OnGestureListener mGestureListener = new GestureDetector.SimpleOnGestureListener(){
@@ -129,11 +144,14 @@ public class SlideLayer extends FrameLayout {
         // called from here in order to find out event type, and decide should it be intercepted
         gd.onTouchEvent(ev);
 
-        boolean intercept = isScrollHorizontal;
+        // delegate is set not for all layers
+        boolean willDelegateIntercept = mDelegate != null && mDelegate.shouldInterceptEvents(this);
+        boolean intercept = isScrollHorizontal || willDelegateIntercept;
         if (intercept){
             onCancel();
         }
-//        if (DEBUG) Log.d(TAG, String.format("onInterceptTouchEvent %s return %b", actionToString(ev.getAction()), intercept));
+        if (DEBUG) Log.d(TAG, String.format("onInterceptTouchEvent this=%s %s intercept=%b",
+                this, actionToString(ev.getAction()), intercept));
         return intercept;
     }
 
@@ -141,8 +159,8 @@ public class SlideLayer extends FrameLayout {
     public boolean onTouchEvent(MotionEvent event) {
         final int action = event.getAction();
 
-        if (DEBUG) Log.v(TAG, String.format("onTouchEvent this=%s listeners=%d %s rawX %f X %f",
-                this, mListeners.size(), actionToString(action), event.getRawX(), event.getX()));
+        if (DEBUG) Log.v(TAG, String.format("onTouchEvent this=%s %s rawX %f X %f",
+                this, actionToString(action), event.getRawX(), event.getX()));
         float x;
         float distanceX;
         switch (action){
@@ -151,17 +169,13 @@ public class SlideLayer extends FrameLayout {
                 distanceX = x - mLastMotionX;
                 mLastMotionX = x;
 
-                for (Listener l : mListeners){
-                    l.onActionMove(this, distanceX);
-                }
+                mDelegate.onActionMove(this, distanceX);
                 break;
             case MotionEvent.ACTION_UP:
                 x = event.getRawX();
                 distanceX = x - mInitialMotionX;
 
-                for (Listener l : mListeners){
-                    l.onActionUp(this, distanceX);
-                }
+                mDelegate.onActionUp(this, distanceX);
                 break;
         }
         return true;
@@ -175,13 +189,9 @@ public class SlideLayer extends FrameLayout {
         mSide = side;
     }
 
-    public void addListener(Listener l){
-        if (DEBUG) Log.v(TAG, String.format("addListener this=%s l=%s", this, l));
-        mListeners.add(l);
-    }
-    public void removeListener(Listener l){
-        if (DEBUG) Log.v(TAG, String.format("removeListener this=%s l=%s", this, l));
-        mListeners.remove(l);
+    public void addDelegate(Delegate delegate){
+        if (DEBUG) Log.v(TAG, String.format("addDelegate this=%s delegate=%s", this, delegate));
+        mDelegate = delegate;
     }
 
     public static String actionToString(int action) {

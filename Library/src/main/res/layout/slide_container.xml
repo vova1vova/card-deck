@@ -4,33 +4,33 @@
        android:layout_height="match_parent">
 
     <FrameLayout
-        android:id="@+id/card_3_slide"
+        android:id="@+id/card_3_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
         <com.snaprix.carddecklibrary.views.SlideLayer
-            android:id="@+id/card_3_interact"
+            android:id="@+id/card_3_layer"
             android:layout_width="@dimen/sub_menu_width"
             android:layout_height="match_parent"
             app:isTouchModeEnabled="false"
             app:layerNumber="3"/>
     </FrameLayout>
     <FrameLayout
-        android:id="@+id/card_2_slide"
+        android:id="@+id/card_2_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
         <com.snaprix.carddecklibrary.views.SlideLayer
-            android:id="@+id/card_2_interact"
+            android:id="@+id/card_2_layer"
             android:layout_width="@dimen/menu_width"
             android:layout_height="match_parent"
             app:isTouchModeEnabled="false"
             app:layerNumber="2"/>
     </FrameLayout>
     <FrameLayout
-        android:id="@+id/card_1_slide"
+        android:id="@+id/card_1_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
         <com.snaprix.carddecklibrary.views.SlideLayer
-            android:id="@+id/card_1_interact"
+            android:id="@+id/card_1_layer"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:isTouchModeEnabled="true"
